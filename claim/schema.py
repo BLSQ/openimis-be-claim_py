@@ -41,7 +41,11 @@ class Query(graphene.ObjectType):
         ClaimAdminGQLType,
         search=graphene.String(),
         region_uuid=graphene.String(),
-        district_uuid=graphene.String()
+        district_uuid=graphene.String(),
+        restrict_self=graphene.Boolean(
+            default_value=False,
+            description="Only return the current user's claim admin, if it is within the other filters"
+        ),
     )
     claim_officers = DjangoFilterConnectionField(
         OfficerGQLType, search=graphene.String()
@@ -137,11 +141,14 @@ class Query(graphene.ObjectType):
             self,
             info,
             search=None,
+            restrict_self=False,
             **kwargs
     ):
-        if not info.context.user.has_perms(
-                ClaimConfig.gql_query_claim_admins_perms
-        ):
+        only_self = not info.context.user.has_perms(
+            ClaimConfig.gql_query_claim_admins_perms
+        )
+
+        if only_self and not info.context.user.claim_admin_id:
             raise PermissionDenied(_("unauthorized"))
 
         hf_filters = [*filter_validity(**kwargs)]
@@ -157,6 +164,8 @@ class Query(graphene.ObjectType):
         user_health_facility = HealthFacility.objects.filter(*hf_filters)
 
         filters = [*filter_validity(**kwargs)]
+        if only_self or restrict_self:
+            filters += [Q(id=info.context.user.claim_admin_id)]
         if user_health_facility:
             filters += [Q(health_facility__in=user_health_facility)]
 
@@ -165,7 +174,8 @@ class Query(graphene.ObjectType):
                         Q(last_name__icontains=search) |
                         Q(other_names__icontains=search)]
 
-        return ClaimAdmin.objects.filter(*filters)
+        qs = ClaimAdmin.objects.filter(*filters)
+        return qs
 
     def resolve_claim_officers(self, info, search=None, **kwargs):
         if not info.context.user.has_perms(ClaimConfig.gql_query_claim_officers_perms):
