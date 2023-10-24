@@ -7,6 +7,9 @@ import graphene
 import graphene_django_optimizer
 from django.db.models import OuterRef, Avg, Subquery, Q
 
+from core.services.spimm_services import fetch_next_claim_id
+from insuree.models import Insuree
+from location.models import HealthFacility
 from .apps import ClaimConfig
 from claim.validations import validate_claim, get_claim_category, validate_assign_prod_to_claimitems_and_services, \
     process_dedrem, approved_amount
@@ -125,7 +128,7 @@ class ClaimCodeInputType(graphene.String):
 
     @staticmethod
     def coerce_string(value):
-        assert_string_length(value, 8)
+        # assert_string_length(value, 8)
         return value
 
     serialize = coerce_string
@@ -134,7 +137,7 @@ class ClaimCodeInputType(graphene.String):
     @staticmethod
     def parse_literal(ast):
         result = graphene.String.parse_literal(ast)
-        assert_string_length(result, 8)
+        # assert_string_length(result, 8)
         return result
 
 
@@ -193,7 +196,8 @@ class AttachmentInputType(Attachment, OpenIMISMutation.Input):
 class ClaimInputType(OpenIMISMutation.Input):
     id = graphene.Int(required=False, read_only=True)
     uuid = graphene.String(required=False)
-    code = ClaimCodeInputType(required=True)
+    # code = ClaimCodeInputType(required=True)
+    code = ClaimCodeInputType(required=False)
     insuree_id = graphene.Int(required=True)
     date_from = graphene.Date(required=True)
     date_to = graphene.Date(required=False)
@@ -275,7 +279,7 @@ def create_attachments(claim_id, attachments):
 def update_or_create_claim(data, user):
     items = data.pop('items') if 'items' in data else []
     services = data.pop('services') if 'services' in data else []
-    incoming_code = data.get('code')
+    incoming_code = data.pop('code', None)
     claim_uuid = data.pop("uuid", None)
     current_claim = Claim.objects.filter(uuid=claim_uuid).first()
     current_code = current_claim.code if current_claim else None
@@ -296,6 +300,18 @@ def update_or_create_claim(data, user):
         reset_claim_before_update(claim)
         [setattr(claim, key, data[key]) for key in data]
     else:
+        hf_id = data["health_facility_id"]
+        hf = HealthFacility.objects.filter(id=hf_id).first()
+        if not hf:
+            raise ValueError(f"Can't find HF (id={hf_id})")
+        insuree_id = data["insuree_id"]
+        insuree = Insuree.objects.filter(id=insuree_id).first()
+        if not insuree:
+            raise ValueError(f"Can't find Insuree (id={insuree_id})")
+        sequence_number = fetch_next_claim_id(hf_id)
+        number = str(sequence_number).zfill(4)
+        code = f"{insuree.chf_id}C{number}"
+        data["code"] = code
         claim = Claim.objects.create(**data)
     from core.utils import TimeUtils
     claimed = 0
@@ -329,7 +345,7 @@ class CreateClaimMutation(OpenIMISMutation):
             if not user.has_perms(ClaimConfig.gql_mutation_create_claims_perms):
                 raise PermissionDenied(_("unauthorized"))
             # Claim code unicity should be enforced at DB Scheme level...
-            if Claim.objects.filter(code=data['code']).exists():
+            if "code" in data and Claim.objects.filter(code=data['code']).exists():
                 return [{
                     'message': _("claim.mutation.duplicated_claim_code") % {'code': data['code']},
                 }]
