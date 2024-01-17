@@ -1,10 +1,11 @@
 from claim.reports import claim_percentage_referrals, claims_overview, claim_history, \
-    claims_primary_operational_indicators, nhia_claims_paid, nhia_claims_rejected
+    claims_primary_operational_indicators, nhia_claims_paid, nhia_claims_rejected, nhia_claims_pending
 from claim.reports.claim_history import claim_history_query
 from claim.reports.claim_percentage_referrals import claim_percentage_referrals_query
 from claim.reports.claims_overview import claims_overview_query
 from claim.reports.claims_primary_operational_indicators import claims_primary_operational_indicators_query
 from claim.reports.nhia_claims_paid import nhia_claims_paid_query
+from claim.reports.nhia_claims_pending import nhia_claims_pending_query
 from claim.reports.nhia_claims_rejected import nhia_claims_rejected_query
 
 report_definitions = [
@@ -61,5 +62,14 @@ report_definitions = [
         "module": "claim",
         "python_query": nhia_claims_rejected_query,
         "permission": ["131231"],
+    },
+    {
+        "name": "nhia_claims_pending",
+        "engine": 0,
+        "default_report": nhia_claims_pending.template,
+        "description": "NHIA - Claims Pending",
+        "module": "claim",
+        "python_query": nhia_claims_pending_query,
+        "permission": ["131232"],
     },
 ]
