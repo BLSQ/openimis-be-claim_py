@@ -164,7 +164,8 @@ class Query(graphene.ObjectType):
         user_health_facility = HealthFacility.objects.filter(*hf_filters)
 
         filters = [*filter_validity(**kwargs)]
-        if only_self or (restrict_self and info.context.user.claim_admin_id):
+        is_admin = hasattr(info.context.user, "is_imis_admin") and info.context.user.is_imis_admin
+        if not is_admin and (only_self or (restrict_self and info.context.user.claim_admin_id)):
             filters += [Q(id=info.context.user.claim_admin_id)]
         if user_health_facility:
             filters += [Q(health_facility__in=user_health_facility)]
