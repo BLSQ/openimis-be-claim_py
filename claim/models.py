@@ -171,6 +171,9 @@ class FeedbackPrompt(core_models.VersionedModel):
 signal_claim_rejection = dispatch.Signal(providing_args=["claim"])
 
 
+CLAIM_CODE_LENGTH = 100
+
+
 class Claim(core_models.VersionedModel, core_models.ExtendableModel):
     id = models.AutoField(db_column='ClaimID', primary_key=True)
     uuid = models.CharField(db_column='ClaimUUID',
@@ -179,7 +182,7 @@ class Claim(core_models.VersionedModel, core_models.ExtendableModel):
         db_column='ClaimCategory', max_length=1, blank=True, null=True)
     insuree = models.ForeignKey(
         insuree_models.Insuree, models.DO_NOTHING, db_column='InsureeID')
-    code = models.CharField(db_column='ClaimCode', max_length=8, unique=True)
+    code = models.CharField(db_column='ClaimCode', max_length=CLAIM_CODE_LENGTH, blank=True, null=True)
     date_from = fields.DateField(db_column='DateFrom')
     date_to = fields.DateField(db_column='DateTo', blank=True, null=True)
     status = models.SmallIntegerField(db_column='ClaimStatus')

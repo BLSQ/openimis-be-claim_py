@@ -21,7 +21,7 @@ from location.schema import UserDistrict
 
 from claim.gql_queries import ClaimGQLType
 from claim.models import Claim, Feedback, FeedbackPrompt, ClaimDetail, ClaimItem, ClaimService, ClaimAttachment, \
-    ClaimDedRem
+    ClaimDedRem, CLAIM_CODE_LENGTH
 from product.models import ProductItemOrService
 
 from claim.utils import process_items_relations, process_services_relations
@@ -126,7 +126,7 @@ class ClaimCodeInputType(graphene.String):
 
     @staticmethod
     def coerce_string(value):
-        assert_string_length(value, 8)
+        assert_string_length(value, CLAIM_CODE_LENGTH)
         return value
 
     serialize = coerce_string
@@ -135,7 +135,7 @@ class ClaimCodeInputType(graphene.String):
     @staticmethod
     def parse_literal(ast):
         result = graphene.String.parse_literal(ast)
-        assert_string_length(result, 8)
+        assert_string_length(result, CLAIM_CODE_LENGTH)
         return result
 
 
