@@ -1186,13 +1186,13 @@ FROM (SELECT HF."HfID", HF."HFCode", HF."HFName"
                INNER JOIN "uvwLocations" L ON L."LocationId" = HF."LocationId"
       WHERE HF."ValidityTo" Is NULL
         AND HF."HFLevel" IN ('D', 'C')
-        AND (L."RegionId" = %(region_id)s OR %(region_id)s = 0 OR L."LocationId" IS NULL)
-        AND (L."DistrictId" = %(district_id)s OR %(district_id)s = 0 OR L."DistrictId" IS NULL)
+        AND (L."RegionId" = %s OR %s = 0 OR L."LocationId" IS NULL)
+        AND (L."DistrictId" = %s OR %s = 0 OR L."DistrictId" IS NULL)
       ) HF
          LEFT OUTER JOIN (SELECT COUNT(1) TotalClaims, "HFID"
                           FROM "tblClaim"
                           WHERE "ValidityTo" Is NULL
-                          AND "DateClaimed" BETWEEN %(date_start)s AND %(date_end)s
+                          AND "DateClaimed" BETWEEN %s AND %s
                           GROUP BY "HFID") TotalClaim ON HF."HfID" = TotalClaim."HFID"
          LEFT OUTER JOIN (SELECT I."HFID", COUNT(C."ClaimID") TotalOP
                           FROM "tblClaim" C
@@ -1205,9 +1205,9 @@ FROM (SELECT HF."HfID", HF."HFCode", HF."HFName"
                             AND (C."DateTo" is null OR C."DateFrom" = C."DateTo")
                             AND HF."HfID" <> I."HFID"
                             AND C."VisitType" = N'R'
-                            AND (L."RegionId" = %(region_id)s OR %(region_id)s = 0 OR L."LocationId" IS NULL)
-                            AND (L."DistrictId" = %(district_id)s OR %(district_id)s = 0 OR L."DistrictId" IS NULL)
-                            AND C."DateClaimed" BETWEEN %(date_start)s AND %(date_end)s
+                            AND (L."RegionId" = %s OR %s = 0 OR L."LocationId" IS NULL)
+                            AND (L."DistrictId" = %s OR %s = 0 OR L."DistrictId" IS NULL)
+                            AND C."DateClaimed" BETWEEN %s AND %s
                           GROUP BY I."HFID") RefOP ON HF."HfID" = RefOP."HFID"
          LEFT OUTER JOIN (SELECT I."HFID", COUNT(C."ClaimID") TotalIP
                           FROM "tblClaim" C
@@ -1220,11 +1220,27 @@ FROM (SELECT HF."HfID", HF."HFCode", HF."HFName"
                             AND C."DateTo" is not null and C."DateFrom" <> C."DateTo"
                             AND HF."HfID" <> I."HFID"
                             AND C."VisitType" = N'R'
-                            AND (L."RegionId" = %(region_id)s OR %(region_id)s = 0 OR L."LocationId" IS NULL)
-                            AND (L."DistrictId" = %(district_id)s OR %(district_id)s = 0 OR L."DistrictId" IS NULL)
-                            AND C."DateClaimed" BETWEEN %(date_start)s AND %(date_end)s
+                            AND (L."RegionId" = %s OR %s = 0 OR L."LocationId" IS NULL)
+                            AND (L."DistrictId" = %s OR %s = 0 OR L."DistrictId" IS NULL)
+                            AND C."DateClaimed" BETWEEN %s AND %s
                           GROUP BY I."HFID") RefIP ON HF."HfID" = RefIP."HFID"
 """
+
+
+def _prepare_report_parameters(dict_params: dict):
+    # Prepares a tuple with parameters, in the correct order, since on MSSQL, pyodbc can't handle named parameters
+    params = (
+        dict_params["region_id"], dict_params["region_id"],
+        dict_params["district_id"], dict_params["district_id"],
+        dict_params["date_start"], dict_params["date_end"],
+        dict_params["region_id"], dict_params["region_id"],
+        dict_params["district_id"], dict_params["district_id"],
+        dict_params["date_start"], dict_params["date_end"],
+        dict_params["region_id"], dict_params["region_id"],
+        dict_params["district_id"], dict_params["district_id"],
+        dict_params["date_start"], dict_params["date_end"],
+    )
+    return params
 
 
 def claim_percentage_referrals_query(user, region_id=0, district_id=0, date_start="2019-01-01", date_end="2022-12-31",
@@ -1233,12 +1249,12 @@ def claim_percentage_referrals_query(user, region_id=0, district_id=0, date_star
         try:
             cur.execute(
                 percentage_referrals_sql,
-                {
+                _prepare_report_parameters({
                     "region_id": region_id,
                     "district_id": district_id,
                     "date_start": date_start,
                     "date_end": date_end,
-                },
+                }),
             )
             data = dictfetchall(cur)
             return {
