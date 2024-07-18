@@ -6440,10 +6440,8 @@ def determine_price_element(element):
     if element.status == ClaimDetail.STATUS_REJECTED:
         return 0.0
 
-    price_approved = element.price_approved if element.price_approved else element.price_asked
-    quantity_approved = element.qty_approved if element.qty_approved else element.qty_provided
-    price = float(price_approved) if price_approved else float(element.price)
-    quantity = float(quantity_approved) if quantity_approved else float(element.quantity)
+    price = float(element.price_approved) if element.price_approved else float(element.price_asked)
+    quantity = int(element.qty_approved) if element.qty_approved else int(element.qty_provided)
     final_price = price * quantity
     return final_price
 
