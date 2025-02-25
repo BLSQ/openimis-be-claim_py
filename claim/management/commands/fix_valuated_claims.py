@@ -89,6 +89,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         logger.info("*** Processing valuated claims that were mistakenly resubmitted ***")
+        print(HELP_TEXT)
+        return
+
         total = 0
         error_missing_claim = 0
         error_missing_items = 0
