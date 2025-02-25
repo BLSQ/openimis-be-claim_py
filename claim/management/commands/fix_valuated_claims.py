@@ -100,7 +100,7 @@ class Command(BaseCommand):
         for wrong_claim in wrong_claims:
             total += 1
             current_claim_id_to_fix = wrong_claim.id
-            logger.info(f"\t Processing claim {total} - ID = {current_claim_id_to_fix} - status = {wrong_claim.status}")
+            logger.info(f"\t Processing claim {total} - ID = {current_claim_id_to_fix} - status = {wrong_claim.status} - code = {wrong_claim.code}")
 
             claim_to_restore = Claim.objects.filter(legacy_id=current_claim_id_to_fix, status=Claim.STATUS_VALUATED).order_by("-id").first()
             if not claim_to_restore:
@@ -109,10 +109,10 @@ class Command(BaseCommand):
                 continue
 
             items_to_restore = {}
-            for item in claim_to_restore.items.all().order_by("-id"):
+            for item in claim_to_restore.items.all().order_by("id"):
                 items_to_restore[item.item_id] = item
             services_to_restore = {}
-            for service in claim_to_restore.services.all().order_by("-id"):
+            for service in claim_to_restore.services.all().order_by("id"):
                 services_to_restore[service.service_id] = service
 
             # Fix items
