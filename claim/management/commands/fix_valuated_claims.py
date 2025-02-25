@@ -64,7 +64,7 @@ FIELDS_TO_FIX_FOR_SERVICES = [
     "exceed_ceiling_amount_category",
     "json_ext",
     "explanation",
-    "adjustment",
+    "justification",
 ]
 FIELDS_TO_FIX_FOR_ITEMS = [
     *FIELDS_TO_FIX_FOR_SERVICES,
