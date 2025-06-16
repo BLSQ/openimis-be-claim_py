@@ -8,7 +8,17 @@ from location.schema import HealthFacilityGQLType
 from medical.schema import DiagnosisGQLType
 from claim_batch.schema import BatchRunGQLType
 from .apps import ClaimConfig
-from .models import ClaimDedRem, Claim, ClaimAdmin, Feedback, ClaimItem, ClaimService, ClaimAttachment
+from .models import (
+    ClaimDedRem,
+    Claim,
+    ClaimAdmin,
+    Feedback,
+    ClaimItem,
+    ClaimService,
+    ClaimAttachment,
+    ClaimTest,
+    AdditionalClaim,
+)
 from django.utils.translation import gettext as _
 from django.core.exceptions import PermissionDenied
 
@@ -17,6 +27,7 @@ class ClaimDedRemGQLType(DjangoObjectType):
     """
     Details about Claim demands and remunerated amounts
     """
+
     class Meta:
         model = ClaimDedRem
         interfaces = (graphene.relay.Node,)
@@ -35,7 +46,9 @@ class ClaimAdminGQLType(DjangoObjectType):
             "code": ["exact", "icontains"],
             "last_name": ["exact", "icontains"],
             "other_names": ["exact", "icontains"],
-            **prefix_filterset("health_facility__", HealthFacilityGQLType._meta.filter_fields),
+            **prefix_filterset(
+                "health_facility__", HealthFacilityGQLType._meta.filter_fields
+            ),
         }
         connection_class = ExtendedConnection
 
@@ -81,6 +94,7 @@ class ClaimGQLType(DjangoObjectType):
         filter_fields = {
             "uuid": ["exact"],
             "code": ["exact", "istartswith", "icontains", "iexact"],
+            "type": ["exact", "icontains"],
             "status": ["exact", "gt"],
             "attachments__type": ["exact", "istartswith", "icontains", "iexact"],
             "attachments__title": ["exact", "istartswith", "icontains", "iexact"],
@@ -97,37 +111,48 @@ class ClaimGQLType(DjangoObjectType):
             "attachments_count__value": ["exact", "lt", "lte", "gt", "gte"],
             **prefix_filterset("icd__", DiagnosisGQLType._meta.filter_fields),
             **prefix_filterset("admin__", ClaimAdminGQLType._meta.filter_fields),
-            **prefix_filterset("health_facility__", HealthFacilityGQLType._meta.filter_fields),
+            **prefix_filterset(
+                "health_facility__", HealthFacilityGQLType._meta.filter_fields
+            ),
             **prefix_filterset("insuree__", InsureeGQLType._meta.filter_fields),
-            **prefix_filterset("batch_run__", BatchRunGQLType._meta.filter_fields)
+            **prefix_filterset("batch_run__", BatchRunGQLType._meta.filter_fields),
         }
         connection_class = ExtendedConnection
 
     def resolve_attachments_count(self, info):
         if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
             raise PermissionDenied(_("unauthorized"))
-        return self.attachments.filter(legacy_id__isnull=True).filter(validity_to__isnull=True).count()
+        return (
+            self.attachments.filter(legacy_id__isnull=True)
+            .filter(validity_to__isnull=True)
+            .count()
+        )
 
     def resolve_items(self, info):
         if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
             raise PermissionDenied(_("unauthorized"))
-        return self.items.filter(legacy_id__isnull=True).filter(validity_to__isnull=True)
+        return self.items.filter(legacy_id__isnull=True).filter(
+            validity_to__isnull=True
+        )
 
     def resolve_services(self, info):
         if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
             raise PermissionDenied(_("unauthorized"))
-        return self.services.filter(legacy_id__isnull=True).filter(validity_to__isnull=True)
+        return self.services.filter(legacy_id__isnull=True).filter(
+            validity_to__isnull=True
+        )
 
     def resolve_client_mutation_id(self, info):
         if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
             raise PermissionDenied(_("unauthorized"))
-        claim_mutation = self.mutations.select_related(
-            'mutation').filter(mutation__status=0).first()
+        claim_mutation = (
+            self.mutations.select_related("mutation").filter(mutation__status=0).first()
+        )
         return claim_mutation.mutation.client_mutation_id if claim_mutation else None
 
     @classmethod
     def get_queryset(cls, queryset, info):
-        claim_ids = Claim.get_queryset(queryset, info).values('uuid').all()
+        claim_ids = Claim.get_queryset(queryset, info).values("uuid").all()
         return Claim.objects.filter(uuid__in=claim_ids)
 
 
@@ -176,3 +201,41 @@ class ClaimServiceGQLType(DjangoObjectType):
 
     class Meta:
         model = ClaimService
+
+
+class ClaimTestGQLType(DjangoObjectType):
+    """
+    Details about a new Claim Test Model
+    """
+
+    class Meta:
+        model = ClaimTest
+        interfaces = (graphene.relay.Node,)
+
+        filter_fields = []
+
+        connection_class = ExtendedConnection
+
+    @classmethod
+    def get_queryset(cls, queryset, info):
+        queryset = queryset.filter(*filter_validity())
+        return queryset
+
+
+class AdditionClaimGQLType(DjangoObjectType):
+    """
+    Details about a new Additional Claim Model
+    """
+
+    class Meta:
+        model = AdditionalClaim
+        interfaces = (graphene.relay.Node,)
+
+        filter_fields = []
+
+        connection_class = ExtendedConnection
+
+    @classmethod
+    def get_queryset(cls, queryset, info):
+        queryset = queryset.filter(*filter_validity())
+        return queryset
